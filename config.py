@@ -56,27 +56,71 @@ def resolve_file(relative_name: str) -> Path:
     return BASE_DIR / relative_name
 
 
-# Groq / LLM configuration
-GROQ_API_KEY: str | None = os.getenv("GROQ_API_KEY")
+# # Groq / LLM configuration
+# GROQ_API_KEY: str | None = os.getenv("GROQ_API_KEY")
 
-# Default model; can be overridden via env var
-GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# # Default model; can be overridden via env var
+# GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-# Hugging Face / embeddings configuration
-EMBEDDING_MODEL_NAME: str = os.getenv(
-    "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2"
-)
+# # Hugging Face / embeddings configuration
+# EMBEDDING_MODEL_NAME: str = os.getenv(
+#     "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2"
+# )
 
-# If true, use Hugging Face Inference / Endpoint embeddings (requires HF API key).
-# Otherwise, embeddings are computed locally via sentence-transformers.
-USE_HF_ENDPOINT_EMBEDDINGS: bool = os.getenv("USE_HF_ENDPOINT_EMBEDDINGS", "0").strip() in (
-    "1",
-    "true",
-    "True",
-    "yes",
-    "YES",
-)
+# # If true, use Hugging Face Inference / Endpoint embeddings (requires HF API key).
+# # Otherwise, embeddings are computed locally via sentence-transformers.
+# USE_HF_ENDPOINT_EMBEDDINGS: bool = os.getenv("USE_HF_ENDPOINT_EMBEDDINGS", "0").strip() in (
+#     "1",
+#     "true",
+#     "True",
+#     "yes",
+#     "YES",
+# )
 
-# LangChain's HF endpoint embeddings read token from HUGGINGFACEHUB_API_KEY
-HUGGINGFACEHUB_API_KEY: str | None = os.getenv("HUGGINGFACEHUB_API_KEY")
+# # LangChain's HF endpoint embeddings read token from HUGGINGFACEHUB_API_KEY
+# HUGGINGFACEHUB_API_KEY: str | None = os.getenv("HUGGINGFACEHUB_API_KEY")
+
+def get_groq_config() -> dict[str, str]:
+    """Streamlit Cloud - ALWAYS uses st.secrets."""
+    try:
+        import streamlit as st
+        
+        # CLOUD: st.secrets (works 100%)
+        api_key = st.secrets.get("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("❌ GROQ_API_KEY missing in st.secrets!")
+            
+        return {
+            "api_key": api_key,
+            "model": st.secrets.get("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+        }
+    except ImportError:
+        # Not in Streamlit context
+        raise RuntimeError("❌ Must run in Streamlit app! Deploy to share.streamlit.io")
+    except Exception as e:
+        raise RuntimeError(f"❌ Cloud config failed: {e}")
+
+# HF Config - same pattern
+def get_hf_config() -> dict[str, str | None]:
+    """HF embeddings config."""
+    try:
+        import streamlit as st
+        return {
+            "api_key": st.secrets.get("HUGGINGFACEHUB_API_KEY"),
+            "model_name": st.secrets.get("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2"),
+            "use_endpoint": st.secrets.get("USE_HF_ENDPOINT_EMBEDDINGS", "0").strip() in ("1", "true", "True", "yes", "YES")
+        }
+    except:
+        raise RuntimeError("❌ Must run in Streamlit app!")
+
+# Initialize globals
+groq_config = get_groq_config()
+GROQ_API_KEY = groq_config["api_key"]
+GROQ_MODEL = groq_config["model"]
+
+hf_config = get_hf_config()
+EMBEDDING_MODEL_NAME = hf_config["model_name"]
+USE_HF_ENDPOINT_EMBEDDINGS = hf_config["use_endpoint"]
+HUGGINGFACEHUB_API_KEY = hf_config["api_key"]
+
 
